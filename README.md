@@ -66,4 +66,4 @@ Todo-ECS-Sample/   <- ルートプロジェクト (git管理)
 - IntelliJ IDEA (本プロジェクトではIntelliJを使用しているが他のIDEでも可)
 
 ## ADR (アーキテクチャ決定記録)
-[プロジェクト構成](./adr/001-project-structure.md)
+[プロジェクト構成](./docs/adr/001-project-structure.md)
