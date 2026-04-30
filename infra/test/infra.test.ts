@@ -1,17 +1,27 @@
-// import * as cdk from 'aws-cdk-lib/core';
-// import { Template } from 'aws-cdk-lib/assertions';
-// import * as Infra from '../lib/infra-stack';
+import * as cdk from 'aws-cdk-lib';
+import { Match, Template } from 'aws-cdk-lib/assertions';
+import { InfraStack } from '../lib/infra-stack';
 
-// example test. To run these tests, uncomment this file along with the
-// example resource in lib/infra-stack.ts
-test('SQS Queue Created', () => {
-//   const app = new cdk.App();
-//     // WHEN
-//   const stack = new Infra.InfraStack(app, 'MyTestStack');
-//     // THEN
-//   const template = Template.fromStack(stack);
+test('Network VPC resources are defined', () => {
+  const app = new cdk.App();
+  const stack = new InfraStack(app, 'MyTestStack', {
+    env: { account: '111111111111', region: 'ap-northeast-1' },
+    environmentName: 'prod',
+    serviceName: 'Todo',
+    version: '1.00',
+  });
 
-//   template.hasResourceProperties('AWS::SQS::Queue', {
-//     VisibilityTimeout: 300
-//   });
+  const template = Template.fromStack(stack);
+
+  template.resourceCountIs('AWS::EC2::VPC', 1);
+  template.resourceCountIs('AWS::EC2::Subnet', 6);
+  template.resourceCountIs('AWS::EC2::NatGateway', 1);
+
+  template.hasResourceProperties('AWS::EC2::VPC', {
+    Tags: Match.arrayWith([
+      { Key: 'env', Value: 'prod' },
+      { Key: 'service', Value: 'Todo' },
+      { Key: 'version', Value: '1.00' },
+    ]),
+  });
 });
