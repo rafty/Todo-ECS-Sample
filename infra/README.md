@@ -37,11 +37,20 @@ npx cdk diff -c env=prod
 - ECR のイメージスキャン設定、ライフサイクルポリシー、タグ不変設定は未採用
 - ECS サービス更新はこの機能の対象外（ECR 配布まで）
 
+## 005-ecs-aurora-jpa で追加された内容
+- ALB / ECS(Fargate) / Aurora Serverless v2(PostgreSQL) / Secrets Manager をCDKで作成
+- `todo:latest` イメージをECSタスク定義で参照
+- DB接続情報をSecrets Manager経由でECSコンテナに注入
+- ALB/ECS/Aurora 用 Security Group を追加し、`ALB -> ECS -> Aurora` の通信経路を明示
+- ALB ヘルスチェック（`path=/`）とターゲットグループ連携を追加
+
 ## 実行時の注意
 - `cdk deploy` / `cdk synth` / `cdk diff` 実行時に Docker デーモンが必要です。
 - AWS 認証情報に ECR への push 権限が必要です。
+- `prod` 実行時は、`111111111111` 側の CDK lookup role を Assume できる認証が必要です。
 
 ## 関連ドキュメント
 - ネットワーク詳細: `../docs/infra/network-baseline.md`
 - ECR配布詳細: `../docs/infra/ecr-image-deployment.md`
+- ECS/Aurora実行基盤: `../docs/infra/ecs-aurora-runtime-baseline.md`
 - ADR: `../docs/adr/002-network-baseline-and-env-switching.md`
