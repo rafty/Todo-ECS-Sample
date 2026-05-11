@@ -1,0 +1,26 @@
+# 非参照
+ADR/
+
+# ビルド生成物
+dist/
+build/
+out/
+
+# 依存ライブラリ（インデックスの肥大化防止）
+node_modules/
+vendor/
+
+# ログや一時ファイル
+*.log
+tmp/
+.cache/
+
+# 巨大なデータファイルやバイナリ
+*.parquet
+*.csv
+*.exe
+*.bin
+
+# 秘匿情報（念のため）
+.env
+*.pem

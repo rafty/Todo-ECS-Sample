@@ -51,6 +51,7 @@ Todo-ECS-Sample/   <- ルートプロジェクト (git管理)
 ### インフラストラクチャ
 - AWS CDK
 - AWS ECS on Fargate
+- Amazon ECR
 - Amazon CloudFront
 - ALB
 - AWS Secrets Manager
