@@ -30,6 +30,18 @@ npx cdk diff -c env=prod
 - NAT Gateway 1台
 - 共通タグ `env` / `service` / `version`（`version=1.00`）
 
+## 004-awscdk_docker_image_deployment で追加された内容
+- `Todo` ECR リポジトリを CDK で作成
+- `backend/` の Dockerfile をビルドし、ECR に `latest` タグで配布
+- `RemovalPolicy.DESTROY`（サンプル要件として `prod` 含む全対象環境）
+- ECR のイメージスキャン設定、ライフサイクルポリシー、タグ不変設定は未採用
+- ECS サービス更新はこの機能の対象外（ECR 配布まで）
+
+## 実行時の注意
+- `cdk deploy` / `cdk synth` / `cdk diff` 実行時に Docker デーモンが必要です。
+- AWS 認証情報に ECR への push 権限が必要です。
+
 ## 関連ドキュメント
 - ネットワーク詳細: `../docs/infra/network-baseline.md`
+- ECR配布詳細: `../docs/infra/ecr-image-deployment.md`
 - ADR: `../docs/adr/002-network-baseline-and-env-switching.md`

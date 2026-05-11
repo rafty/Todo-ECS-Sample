@@ -16,6 +16,16 @@ test('Network VPC resources are defined', () => {
   template.resourceCountIs('AWS::EC2::VPC', 1);
   template.resourceCountIs('AWS::EC2::Subnet', 6);
   template.resourceCountIs('AWS::EC2::NatGateway', 1);
+  template.resourceCountIs('AWS::ECR::Repository', 1);
+
+  // なぜ必要か: ECRリポジトリ名と削除ポリシーが仕様どおりであることを担保するため。
+  template.hasResourceProperties('AWS::ECR::Repository', {
+    RepositoryName: 'todo',
+  });
+  template.hasResource('AWS::ECR::Repository', {
+    DeletionPolicy: 'Delete',
+    UpdateReplacePolicy: 'Delete',
+  });
 
   template.hasResourceProperties('AWS::EC2::VPC', {
     Tags: Match.arrayWith([
