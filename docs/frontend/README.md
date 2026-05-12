@@ -49,9 +49,10 @@ sequenceDiagram
 - `persistRefreshToken`
 
 ### 開発時の確認手順
-1. `frontend/` で `npm run dev -- --host 127.0.0.1 --port 4173` を実行する。
-2. `/` と `/auth/callback` がフロントエンドへ到達することを確認する。
-3. Cognito 設定入り `runtime-config.json` を用意し、ログイン・Todo CRUD・ログアウトを確認する。
+1. `frontend/` で `npm run lint`、`npm run typecheck`、`npm run build` を実行し、静的検証とビルドが成功することを確認する。
+2. `frontend/` で `npm run dev -- --host 127.0.0.1 --port 4173` を実行する。
+3. `/` と `/auth/callback` がフロントエンドへ到達することを確認する。
+4. Cognito 設定入り `runtime-config.json` を用意し、ログイン・Todo CRUD・ログアウトを確認する。
 
 ## 関連
 - `frontend/README.md`
