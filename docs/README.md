@@ -34,6 +34,7 @@ flowchart TB
   - [ネットワーク基盤](./infra/network-baseline.md)
   - [ECR イメージ配布](./infra/ecr-image-deployment.md)
   - [ECS + Aurora 実行基盤](./infra/ecs-aurora-runtime-baseline.md)
+  - [Cognito 負荷試験ユーザー運用手順](./infra/cognito-load-test-user-operations.md)
 - development
   - [backend 開発手順](./development/backend-development.md)
   - [AWS デプロイ手順（Monorepo 全体）](./development/aws-deployment-manual.md)

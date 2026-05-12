@@ -175,6 +175,7 @@ test('Network, ECS, ALB, CloudFront, Cognito and Aurora resources are defined', 
         RequireUppercase: false,
         RequireNumbers: false,
         RequireSymbols: false,
+        TemporaryPasswordValidityDays: 7,
       }),
     }),
   });
