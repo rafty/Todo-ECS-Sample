@@ -69,3 +69,8 @@ Todo-ECS-Sample/   <- ルートプロジェクト (git管理)
 
 ## ADR (アーキテクチャ決定記録)
 [プロジェクト構成](./docs/adr/001-project-structure.md)
+
+## ドキュメント入口
+- [docs/README.md](./docs/README.md)
+- [backend/README.md](./backend/README.md)
+- [infra/README.md](./infra/README.md)
