@@ -45,19 +45,27 @@ npx cdk diff -c env=prod
 - ALB ヘルスチェック（`path=/`）とターゲットグループ連携を追加
 
 ## 006-api-and-springboot-controller-service で追加された内容
-- CloudFront Distribution を追加し、公開経路を `CloudFront -> ALB -> ECS` に統一
+- CloudFront Distribution を追加し、公開経路を `CloudFront -> (/api/*) ALB -> ECS` に統一
 - ALB の Security Group 受信元を CloudFront managed prefix list 起点に制限（ALB 直アクセス抑止）
 - Cognito User Pool / App Client / Hosted UI Domain を追加
   - 自己登録可、MFA不要、簡易パスワードポリシー
   - App Client は Public Client（secret なし）+ Authorization Code Flow
-  - callback URL: `https://d123456abcdef8.cloudfront.net/auth/callback`
-  - logout URL: `https://d123456abcdef8.cloudfront.net/`
+  - callback/logout URL は CloudFront ドメインから動的生成
 - ALB ヘルスチェックパスを `/actuator/health` に統一
+
+## 008-frontend-basic で追加された内容
+- S3（private）を frontend 静的配信バケットとして追加
+- CloudFront default behavior を S3 origin（OAC）へ変更
+- `/api/*` behavior は ALB origin + no-cache + Authorization 転送を維持
+- SPA fallback（403/404 -> `/index.html`）を追加
+- `s3deploy.BucketDeployment` で `frontend/dist` と `runtime-config.json` を配備
+- Cognito App Client に Refresh Token Rotation を追加
 
 ## 実行時の注意
 - `cdk deploy` / `cdk synth` / `cdk diff` 実行時に Docker デーモンが必要です。
 - AWS 認証情報に ECR への push 権限が必要です。
 - `prod` 実行時は、`111111111111` 側の CDK lookup role を Assume できる認証が必要です。
+- frontend を更新した場合は、`infra` 実行前に `frontend/` で `npm run build` を実行して `dist/` を生成してください。
 
 ## 関連ドキュメント
 - ネットワーク詳細: `../docs/infra/network-baseline.md`

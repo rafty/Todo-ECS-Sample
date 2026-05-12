@@ -57,6 +57,8 @@ export class TodoCognitoConstruct extends Construct {
       },
       supportedIdentityProviders: [cognito.UserPoolClientIdentityProvider.COGNITO],
       preventUserExistenceErrors: true,
+      // なぜ必要か: refresh tokenの使い回し期間を短縮し、盗難トークンの悪用余地を減らすため。
+      refreshTokenRotationGracePeriod: cdk.Duration.seconds(10),
     });
 
     // なぜ必要か: Hosted UIのエンドポイントを払い出し、フロントエンドログイン導線を成立させるため。

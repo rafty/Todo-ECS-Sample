@@ -1,5 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { TodoAlbConstruct } from './constructs/todo-alb-construct';
 import { TodoAppSecurityGroupsConstruct } from './constructs/todo-app-security-groups-construct';
@@ -7,6 +8,8 @@ import { TodoAuroraConstruct } from './constructs/todo-aurora-construct';
 import { TodoBackendEcsServiceConstruct } from './constructs/todo-backend-ecs-service-construct';
 import { TodoCloudFrontConstruct } from './constructs/todo-cloudfront-construct';
 import { TodoCognitoConstruct } from './constructs/todo-cognito-construct';
+import { TodoFrontendDeploymentConstruct } from './constructs/todo-frontend-deployment-construct';
+import { TodoFrontendStaticBucketConstruct } from './constructs/todo-frontend-static-bucket-construct';
 import { BackendImageDeploymentConstruct } from './constructs/backend-image-deployment-construct';
 import { NetworkVpcConstruct } from './constructs/network-vpc-construct';
 import { TodoEcrRepositoryConstruct } from './constructs/todo-ecr-repository-construct';
@@ -26,9 +29,15 @@ export class InfraStack extends cdk.Stack {
     const databasePort = 5432;
     const databaseName = 'todoapp';
     const healthCheckPath = '/actuator/health';
-    const hostedUiCallbackUrl = 'https://d123456abcdef8.cloudfront.net/auth/callback';
-    const hostedUiLogoutUrl = 'https://d123456abcdef8.cloudfront.net/';
     const cognitoDomainPrefix = `todo-ecs-sample-${props.environmentName}-auth`;
+    const frontendBuildDirectoryPath = path.join(__dirname, '../../frontend/dist');
+
+    // なぜ必要か: S3配備対象を明示し、未ビルド状態で不正な静的配布物をデプロイする事故を防ぐため。
+    if (!fs.existsSync(frontendBuildDirectoryPath)) {
+      throw new Error(
+        `frontend/dist が見つかりません: ${frontendBuildDirectoryPath}. 先に frontend で npm run build を実行してください。`,
+      );
+    }
 
     // なぜ必要か: Stack の責務を「構成の組み立て」に限定し、ネットワーク定義を Construct に分離して保守性を高める。
     const networkVpc = new NetworkVpcConstruct(this, 'NetworkVpcConstruct', {
@@ -87,6 +96,18 @@ export class InfraStack extends cdk.Stack {
       healthCheckPath,
     });
 
+    // なぜ必要か: SPA成果物をprivateなS3へ配置し、CloudFront default behaviorで配信する土台を作るため。
+    const todoFrontendStaticBucket = new TodoFrontendStaticBucketConstruct(this, 'TodoFrontendStaticBucketConstruct');
+
+    // なぜ必要か: CloudFrontを公開入口に配置し、S3静的配信とAPI配信を同一ドメインに統合するため。
+    const todoCloudFront = new TodoCloudFrontConstruct(this, 'TodoCloudFrontConstruct', {
+      loadBalancer: todoApplicationAlb.loadBalancer,
+      staticSiteBucket: todoFrontendStaticBucket.bucket,
+    });
+
+    const hostedUiCallbackUrl = `https://${todoCloudFront.distribution.distributionDomainName}/auth/callback`;
+    const hostedUiLogoutUrl = `https://${todoCloudFront.distribution.distributionDomainName}/`;
+
     // なぜ必要か: Hosted UIログインとJWT発行元を管理するCognito認証基盤をアプリ専用に用意するため。
     const todoCognitoAuth = new TodoCognitoConstruct(this, 'TodoCognitoConstruct', {
       callbackUrls: [hostedUiCallbackUrl],
@@ -94,9 +115,20 @@ export class InfraStack extends cdk.Stack {
       domainPrefix: cognitoDomainPrefix,
     });
 
-    // なぜ必要か: CloudFrontを公開入口に配置し、ALB直アクセスを避けた配信経路へ統一するため。
-    const todoCloudFront = new TodoCloudFrontConstruct(this, 'TodoCloudFrontConstruct', {
-      loadBalancer: todoApplicationAlb.loadBalancer,
+    // なぜ必要か: frontend成果物と実行時設定をS3へ配置し、CloudFrontキャッシュ無効化まで一貫実行するため。
+    new TodoFrontendDeploymentConstruct(this, 'TodoFrontendDeploymentConstruct', {
+      destinationBucket: todoFrontendStaticBucket.bucket,
+      distribution: todoCloudFront.distribution,
+      frontendBuildDirectoryPath,
+      runtimeConfig: {
+        cognitoDomain: todoCognitoAuth.userPoolDomain.baseUrl(),
+        cognitoClientId: todoCognitoAuth.userPoolClient.userPoolClientId,
+        oauthScopes: ['openid', 'email', 'profile'],
+        callbackPath: '/auth/callback',
+        logoutPath: '/',
+        apiBasePath: '/api',
+        persistRefreshToken: false,
+      },
     });
 
     // なぜ必要か: デプロイ後に配布先リポジトリ情報を確認できるようにするため。
@@ -124,6 +156,11 @@ export class InfraStack extends cdk.Stack {
       value: todoCloudFront.distribution.distributionDomainName,
     });
 
+    // なぜ必要か: 静的配信先バケットを運用確認や障害切り分けで追跡できるようにするため。
+    new cdk.CfnOutput(this, 'TodoAppFrontendBucketName', {
+      value: todoFrontendStaticBucket.bucket.bucketName,
+    });
+
     // なぜ必要か: backend のJWT検証設定に必要なCognito識別子を運用から参照可能にするため。
     new cdk.CfnOutput(this, 'TodoAppCognitoUserPoolId', {
       value: todoCognitoAuth.userPool.userPoolId,
@@ -144,7 +181,7 @@ export class InfraStack extends cdk.Stack {
       value: todoCognitoAuth.issuerUrl,
     });
 
-    // なぜ必要か: 仕様で固定したcallback/logout URLが実際に適用されていることを運用確認しやすくするため。
+    // なぜ必要か: CloudFront自動生成ドメインを使うcallback/logout URLが適用されたことを運用確認しやすくするため。
     new cdk.CfnOutput(this, 'TodoAppCognitoCallbackUrl', {
       value: hostedUiCallbackUrl,
     });
