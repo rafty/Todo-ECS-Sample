@@ -53,6 +53,7 @@ Todo-ECS-Sample/   <- ルートプロジェクト (git管理)
 - AWS ECS on Fargate
 - Amazon ECR
 - Amazon CloudFront
+- Amazon Cognito
 - ALB
 - AWS Secrets Manager
 - AWS Aurora Serverless v2 PostgreSQL
