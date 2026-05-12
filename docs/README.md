@@ -36,6 +36,7 @@ flowchart TB
   - [ECS + Aurora 実行基盤](./infra/ecs-aurora-runtime-baseline.md)
 - development
   - [backend 開発手順](./development/backend-development.md)
+  - [AWS デプロイ手順（Monorepo 全体）](./development/aws-deployment-manual.md)
 - adr
   - [ADR 001: プロジェクト構成](./adr/001-project-structure.md)
   - [ADR 002: ネットワーク基盤と環境切替方式](./adr/002-network-baseline-and-env-switching.md)
