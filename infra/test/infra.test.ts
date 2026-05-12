@@ -17,12 +17,14 @@ test('Network, ECS, ALB, CloudFront, Cognito and Aurora resources are defined', 
   template.resourceCountIs('AWS::EC2::Subnet', 6);
   template.resourceCountIs('AWS::EC2::NatGateway', 1);
   template.resourceCountIs('AWS::ECR::Repository', 1);
+  template.resourceCountIs('AWS::S3::Bucket', 1);
   template.resourceCountIs('AWS::ECS::Cluster', 1);
   template.resourceCountIs('AWS::ECS::Service', 1);
   template.resourceCountIs('AWS::ECS::TaskDefinition', 1);
   template.resourceCountIs('AWS::ElasticLoadBalancingV2::LoadBalancer', 1);
   template.resourceCountIs('AWS::ElasticLoadBalancingV2::TargetGroup', 1);
   template.resourceCountIs('AWS::CloudFront::Distribution', 1);
+  template.resourceCountIs('Custom::CDKBucketDeployment', 1);
   template.resourceCountIs('AWS::Cognito::UserPool', 1);
   template.resourceCountIs('AWS::Cognito::UserPoolClient', 1);
   template.resourceCountIs('AWS::Cognito::UserPoolDomain', 1);
@@ -37,6 +39,16 @@ test('Network, ECS, ALB, CloudFront, Cognito and Aurora resources are defined', 
   template.hasResource('AWS::ECR::Repository', {
     DeletionPolicy: 'Delete',
     UpdateReplacePolicy: 'Delete',
+  });
+
+  // なぜ必要か: frontend配信バケットが非公開構成で作成されることを担保するため。
+  template.hasResourceProperties('AWS::S3::Bucket', {
+    PublicAccessBlockConfiguration: Match.objectLike({
+      BlockPublicAcls: true,
+      BlockPublicPolicy: true,
+      IgnorePublicAcls: true,
+      RestrictPublicBuckets: true,
+    }),
   });
 
   // なぜ必要か: ECSがtodo:latestを参照し、DB接続情報をシークレット経由で受け取ることを担保するため。
@@ -104,20 +116,50 @@ test('Network, ECS, ALB, CloudFront, Cognito and Aurora resources are defined', 
     DistributionConfig: Match.objectLike({
       DefaultCacheBehavior: Match.objectLike({
         ViewerProtocolPolicy: 'redirect-to-https',
-        AllowedMethods: Match.arrayWith(['GET', 'HEAD', 'OPTIONS', 'PUT', 'PATCH', 'POST', 'DELETE']),
+        AllowedMethods: Match.arrayWith(['GET', 'HEAD', 'OPTIONS']),
         CachePolicyId: Match.anyValue(),
-        OriginRequestPolicyId: Match.anyValue(),
       }),
+      DefaultRootObject: 'index.html',
+      CustomErrorResponses: Match.arrayWith([
+        Match.objectLike({
+          ErrorCode: 403,
+          ResponseCode: 200,
+          ResponsePagePath: '/index.html',
+        }),
+        Match.objectLike({
+          ErrorCode: 404,
+          ResponseCode: 200,
+          ResponsePagePath: '/index.html',
+        }),
+      ]),
+      CacheBehaviors: Match.arrayWith([
+        Match.objectLike({
+          PathPattern: '/api/*',
+          AllowedMethods: Match.arrayWith(['GET', 'HEAD', 'OPTIONS', 'PUT', 'PATCH', 'POST', 'DELETE']),
+          CachePolicyId: Match.anyValue(),
+          OriginRequestPolicyId: Match.anyValue(),
+        }),
+      ]),
     }),
   });
 
-  // なぜ必要か: Cognito App Client が公開クライアントとして code flow と固定callback/logout URLを持つことを担保するため。
+  // なぜ必要か: BucketDeploymentがCloudFront無効化( /* )まで一貫実行されることを担保するため。
+  template.hasResourceProperties('Custom::CDKBucketDeployment', {
+    DistributionId: Match.anyValue(),
+    DistributionPaths: ['/*'],
+  });
+
+  // なぜ必要か: Cognito App Client が公開クライアントとして code flow とCloudFront連携URLを持つことを担保するため。
   template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
     GenerateSecret: false,
     AllowedOAuthFlows: ['code'],
     AllowedOAuthFlowsUserPoolClient: true,
-    CallbackURLs: ['https://d123456abcdef8.cloudfront.net/auth/callback'],
-    LogoutURLs: ['https://d123456abcdef8.cloudfront.net/'],
+    CallbackURLs: Match.anyValue(),
+    LogoutURLs: Match.anyValue(),
+    RefreshTokenRotation: Match.objectLike({
+      Feature: 'ENABLED',
+      RetryGracePeriodSeconds: 10,
+    }),
   });
 
   // なぜ必要か: User Pool がサンプル要件（自己登録可、MFA不要、簡易パスワード）を満たすことを担保するため。
@@ -137,13 +179,17 @@ test('Network, ECS, ALB, CloudFront, Cognito and Aurora resources are defined', 
     }),
   });
 
-  // なぜ必要か: callback/logout固定要件がStack出力に明示され、運用確認で検証しやすくなるため。
+  // なぜ必要か: callback/logout動的連携がStack出力に明示され、運用確認で検証しやすくなるため。
   template.hasOutput('TodoAppCognitoCallbackUrl', {
-    Value: 'https://d123456abcdef8.cloudfront.net/auth/callback',
+    Value: Match.anyValue(),
   });
   template.hasOutput('TodoAppCognitoLogoutUrl', {
-    Value: 'https://d123456abcdef8.cloudfront.net/',
+    Value: Match.anyValue(),
   });
+
+  // なぜ必要か: callback/logoutがCloudFrontドメイン参照であることをテンプレート文字列上で確認するため。
+  expect(JSON.stringify(template.toJSON())).toContain('/auth/callback');
+  expect(JSON.stringify(template.toJSON())).toContain('"DomainName"');
 
   template.hasResourceProperties('AWS::EC2::VPC', {
     Tags: Match.arrayWith([
