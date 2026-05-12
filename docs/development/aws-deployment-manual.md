@@ -34,8 +34,22 @@ flowchart LR
   - `imagedeploy.DockerImageDeployment` のビルド時に必要です。
 - 環境切替は `-c env=<dev|stg|prod>` を使用すること。
   - `env` 未指定は `infra/bin/infra.ts` でエラー終了します。
+
+### 0.1 対象アカウント設定（`prod`）の事前確認
 - 環境マッピング（account/region）は `infra/lib/config/environment-config.ts` で管理します。
-  - 通常デプロイ時に毎回編集しません。
+- `prod` にデプロイする前に、必ず `prod` の `accountId` と `region` が対象環境に一致していることを確認してください。
+- 例（`infra/lib/config/environment-config.ts`）:
+
+```ts
+prod: {
+  environmentName: 'prod',
+  accountId: '111111111111',
+  region: 'ap-northeast-1',
+},
+```
+
+- 上記の `accountId` / `region` はサンプル値です。実運用では対象 AWS アカウント/リージョン値に合わせて事前設定してください。
+- この設定と、実際に利用する AWS 認証情報（AssumeRole 先含む）が一致していない場合、誤デプロイまたは権限エラーの原因になります。
 
 ### 1. 初回セットアップ（1回のみ）
 - 目的: CDK Toolkit スタックを対象アカウント/リージョンへ作成するため。
