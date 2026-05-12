@@ -15,6 +15,11 @@ export class TodoAppSecurityGroupsConstruct extends Construct {
   constructor(scope: Construct, id: string, props: TodoAppSecurityGroupsConstructProps) {
     super(scope, id);
 
+    // なぜ必要か: ALBへの到達元をCloudFront経由に限定し、直アクセスを抑止するためにAWS管理プレフィックスリストを参照する。
+    const cloudFrontOriginFacingPrefixList = ec2.PrefixList.fromLookup(this, 'CloudFrontOriginFacingPrefixList', {
+      prefixListName: 'com.amazonaws.global.cloudfront.origin-facing',
+    });
+
     // なぜ必要か: ALBからの受信とECSへの送信経路を明示し、公開入口の責務を分離するため。
     this.albSecurityGroup = new ec2.SecurityGroup(this, 'AlbSecurityGroup', {
       vpc: props.vpc,
@@ -36,11 +41,11 @@ export class TodoAppSecurityGroupsConstruct extends Construct {
       description: 'Security group for Todo Aurora cluster',
     });
 
-    // なぜ必要か: インターネットからALBのHTTP受付を可能にするため。
+    // なぜ必要か: CloudFront以外からのALB直アクセスを防ぐため、受信元をCloudFront managed prefix listに限定する。
     this.albSecurityGroup.addIngressRule(
-      ec2.Peer.anyIpv4(),
+      cloudFrontOriginFacingPrefixList,
       ec2.Port.tcp(80),
-      'Allow HTTP access from internet',
+      'Allow HTTP access only from CloudFront origin-facing prefix list',
     );
 
     // なぜ必要か: ALBがECSタスクのアプリポートへ到達できるようにするため。

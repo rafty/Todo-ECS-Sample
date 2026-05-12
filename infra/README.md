@@ -44,6 +44,16 @@ npx cdk diff -c env=prod
 - ALB/ECS/Aurora 用 Security Group を追加し、`ALB -> ECS -> Aurora` の通信経路を明示
 - ALB ヘルスチェック（`path=/`）とターゲットグループ連携を追加
 
+## 006-api-and-springboot-controller-service で追加された内容
+- CloudFront Distribution を追加し、公開経路を `CloudFront -> ALB -> ECS` に統一
+- ALB の Security Group 受信元を CloudFront managed prefix list 起点に制限（ALB 直アクセス抑止）
+- Cognito User Pool / App Client / Hosted UI Domain を追加
+  - 自己登録可、MFA不要、簡易パスワードポリシー
+  - App Client は Public Client（secret なし）+ Authorization Code Flow
+  - callback URL: `https://d123456abcdef8.cloudfront.net/auth/callback`
+  - logout URL: `https://d123456abcdef8.cloudfront.net/`
+- ALB ヘルスチェックパスを `/actuator/health` に統一
+
 ## 実行時の注意
 - `cdk deploy` / `cdk synth` / `cdk diff` 実行時に Docker デーモンが必要です。
 - AWS 認証情報に ECR への push 権限が必要です。
