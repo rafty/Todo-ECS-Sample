@@ -13,9 +13,18 @@
 ```bash
 npm install
 npm run lint
+npm run typecheck
 npm run build
 npm run dev -- --host 127.0.0.1 --port 4173
 ```
+
+## TypeScript 構成
+
+- `src/` は TypeScript（`.ts` / `.tsx`）で実装します。
+- 型検証は `npm run typecheck`（`tsc -b`）を使用します。
+- 設定ファイルも TypeScript 化しています。
+  - `vite.config.ts`
+  - `eslint.config.ts`
 
 ## 実行時設定（runtime-config.json）
 
