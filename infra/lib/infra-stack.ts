@@ -115,6 +115,16 @@ export class InfraStack extends cdk.Stack {
       domainPrefix: cognitoDomainPrefix,
     });
 
+    const backendDefaultContainer = todoBackendEcsService.taskDefinition.defaultContainer;
+    if (!backendDefaultContainer) {
+      throw new Error('TodoBackend のデフォルトコンテナが解決できません。タスク定義を確認してください。');
+    }
+    // なぜ必要か: backend の JWT issuer 検証先をCognito実体に合わせ、/api 呼び出し時の401ループを防ぐため。
+    backendDefaultContainer.addEnvironment(
+      'SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI',
+      todoCognitoAuth.issuerUrl,
+    );
+
     // なぜ必要か: frontend成果物と実行時設定をS3へ配置し、CloudFrontキャッシュ無効化まで一貫実行するため。
     new TodoFrontendDeploymentConstruct(this, 'TodoFrontendDeploymentConstruct', {
       destinationBucket: todoFrontendStaticBucket.bucket,

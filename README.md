@@ -67,6 +67,19 @@ Todo-ECS-Sample/   <- ルートプロジェクト (git管理)
 - AWS Account
 - IntelliJ IDEA (本プロジェクトではIntelliJを使用しているが他のIDEでも可)
 
+## Todo サンプルアプリケーション
+[AWS デプロイ手順（Monorepo 全体）](./docs/development/aws-deployment-manual.md)でforntend、backendをAWSにデプロイ後、Todo　アプリケーションのURLを取得してアクセスします。
+Todo　アプリケーションのURLはAWSマネージメントコンソール(CloudFormation)から取得してください。
+
+CloudFormationのスタック:InfraStack-prod -> [出力]タブ -> **TodoAppCloudFrontDomainName**でアクセスできます。
+```text
+https://TodoAppCloudFrontDomainName/
+
+例: https://d31esqfuca50la.cloudfront.net/
+```
+![](image/todos.png)
+
+
 ## ADR (アーキテクチャ決定記録)
 [プロジェクト構成](./docs/adr/001-project-structure.md)
 
