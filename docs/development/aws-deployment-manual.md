@@ -43,7 +43,7 @@ flowchart LR
 ```ts
 prod: {
   environmentName: 'prod',
-  accountId: '111111111111',
+  accountId: '333333333333',
   region: 'ap-northeast-1',
 },
 ```
@@ -57,7 +57,7 @@ prod: {
 
 ```bash
 cd infra
-npx cdk bootstrap aws://111111111111/ap-northeast-1
+npx cdk bootstrap aws://333333333333/ap-northeast-1 -c env=prod
 ```
 
 補足:

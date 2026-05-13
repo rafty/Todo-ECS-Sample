@@ -590,9 +590,8 @@ function App() {
     }
 
     let isActive = true;
-    const timerId = window.setTimeout(() => {
-      setAuthStatus('checking');
-    }, 0);
+    // なぜ必要か: 認証確認開始時点を明示し、非同期処理より後にcheckingが上書きされる競合を防ぐため。
+    setAuthStatus('checking');
 
     const bootstrapAuth = async () => {
       // なぜ必要か: 画面初期化時に token ストアを構成し、既存セッションを継続利用できるようにするため。
@@ -622,7 +621,6 @@ function App() {
 
     return () => {
       isActive = false;
-      window.clearTimeout(timerId);
     };
   }, [runtimeConfig]);
 
