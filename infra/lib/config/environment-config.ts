@@ -21,7 +21,7 @@ const environmentConfigs: Record<EnvironmentName, EnvironmentConfig> = {
   // なぜ必要か: 本featureで実際に対象とする本番環境のデプロイ先を固定する。
   prod: {
     environmentName: 'prod',
-    accountId: '111111111111',
+    accountId: '333333333333',
     region: 'ap-northeast-1',
   },
 };
