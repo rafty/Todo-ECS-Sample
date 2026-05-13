@@ -1,18 +1,19 @@
 # Frontend Docs
 
-## 結論
-- `frontend/` は Cognito Hosted UI（Authorization Code + PKCE）を使って認証し、同一オリジン `/api/todos` で Todo CRUD を実行します。
-- トークン保持はメモリ中心です。`localStorage` は使用せず、必要時のみ refresh token を `sessionStorage` に保存します。
-- `runtime-config.json` は `infra` の `BucketDeployment` で配備時に生成し、環境ごとの差分を吸収します。
+## この文書の対象
 
-## 背景
-- backend は `/api/todos` を JWT Bearer 前提で公開済みです。
-- CloudFront を公開入口とし、静的配信と API 配信を同一ドメインで扱うことで CORS 設定を増やさず運用します。
-- Cognito callback/logout URL は CloudFront ドメインに自動追従させ、固定 URL の手動更新を避けます。
+- 認証方式（Cognito Hosted UI + PKCE）
+- runtime-config の役割
+- backend API との接続前提
 
-## 詳細
+## 要点
 
-### 認証フロー
+- `frontend/` は同一オリジンの `/api/todos` を呼び出します。
+- 認証は Cognito Hosted UI（Authorization Code + PKCE）です。
+- access token はメモリ保持、refresh token は必要時のみ `sessionStorage` へ保存します。
+- 環境差分は `runtime-config.json` で吸収します（CDK 配備時に生成）。
+
+## 認証フロー
 
 ```mermaid
 sequenceDiagram
@@ -32,14 +33,18 @@ sequenceDiagram
   API-->>FE: Todo レスポンス
 ```
 
-### 主要仕様
-- callback パス: `/auth/callback`
-- API ベースパス: `/api`
-- 未認証時: ログインボタン表示
-- 401 応答時: 認証状態を破棄して再ログイン導線へ遷移
-- ログアウト時: クライアント状態クリア後に Cognito `/logout` へ遷移
+## 主要仕様
 
-### runtime-config.json キー
+- callback パス: `/auth/callback`
+- logout 後の戻り先: `/`
+- API ベースパス: `/api`
+- 未認証時: ログイン導線を表示
+- API `401` 応答時: セッションを破棄し再ログイン導線へ移行
+
+## `runtime-config.json`
+
+### キー一覧
+
 - `cognitoDomain`
 - `cognitoClientId`
 - `oauthScopes`
@@ -48,13 +53,25 @@ sequenceDiagram
 - `apiBasePath`
 - `persistRefreshToken`
 
-### 開発時の確認手順
-1. `frontend/` で `npm run lint`、`npm run typecheck`、`npm run build` を実行し、静的検証とビルドが成功することを確認する。
-2. `frontend/` で `npm run dev -- --host 127.0.0.1 --port 4173` を実行する。
-3. `/` と `/auth/callback` がフロントエンドへ到達することを確認する。
-4. Cognito 設定入り `runtime-config.json` を用意し、ログイン・Todo CRUD・ログアウトを確認する。
+### 補足
+
+- デプロイ時は `infra` の `BucketDeployment` で自動生成します。
+- ローカル確認時は `frontend/public/runtime-config.json` を手動配置します。
+
+## 開発時の確認手順
+
+1. `frontend/` で静的検証を実行する。
+   - `npm run lint`
+   - `npm run typecheck`
+2. ビルドを確認する。
+   - `npm run build`
+3. 開発サーバーを起動する。
+   - `npm run dev -- --host 127.0.0.1 --port 4173`
+4. `/` と `/auth/callback` が到達することを確認する。
+5. Cognito 設定入り `runtime-config.json` でログインと Todo CRUD を確認する。
 
 ## 関連
-- `frontend/README.md`
-- `docs/backend/api.md`
-- `docs/infra/ecs-aurora-runtime-baseline.md`
+
+- [frontend 入口 README](../../frontend/README.md)
+- [backend API 仕様](../backend/api.md)
+- [infra 実行基盤](../infra/ecs-aurora-runtime-baseline.md)

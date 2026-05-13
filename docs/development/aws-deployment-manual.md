@@ -1,71 +1,55 @@
 # AWS デプロイ手順（Monorepo 全体）
 
-## 結論
-- 本手順は、`frontend/`・`backend/`・`infra/` で構成されたモノレポを AWS へデプロイするための標準手順です。
-- 対象はローカル開発手順ではなく、AWS へのプロビジョニング / ビルド / デプロイです。
-- 実行順序は `frontend build -> cdk synth/diff（推奨）-> cdk deploy` です。
-- `cdk deploy` では次が同時に実行されます。
-  - `backend/` の Docker イメージを ECR へ配布（`imagedeploy.DockerImageDeployment`）
-  - CloudFormation による AWS リソース更新
-  - `frontend/dist` と `runtime-config.json` の S3 配備（`BucketDeployment`）
+## この手順の対象
 
-## 背景
-- `infra/lib/infra-stack.ts` は `frontend/dist` の存在を必須としており、未ビルド状態では CDK 実行時に失敗します。
-- `imagedeploy.DockerImageDeployment` が backend コンテナイメージをビルドするため、ローカルでコンテナランタイムの起動が必要です。
-- デプロイ作業を `prod` で再現可能にするため、コマンド例は `-c env=prod` を中心に記載します。
+- `frontend/`・`backend/`・`infra/` で構成された本モノレポを AWS へデプロイする
+- ローカル開発手順ではなく、AWS へのビルド/配備手順を扱う
 
-## 詳細
+## 先に把握しておくこと
 
-### 構成と責務
+- 実行順は `frontend build -> cdk synth/diff -> cdk deploy` です。
+- `cdk deploy` 時に以下が同時に行われます。
+  - backend Docker イメージの ECR 配布
+  - CloudFormation によるインフラ更新
+  - `frontend/dist` と `runtime-config.json` の S3 配備
+- `infra/lib/infra-stack.ts` は `frontend/dist` を必須とするため、先に frontend ビルドが必要です。
+
+## 配備フロー
 
 ```mermaid
 flowchart LR
-  A[frontend build] --> B[cdk deploy -c env=prod]
-  B --> C[ECR: backend image push]
-  B --> D[CloudFormation update]
-  B --> E[S3: frontend dist + runtime-config.json]
-  E --> F[CloudFront invalidation]
+  A[frontend build] --> B[cdk synth / diff]
+  B --> C[cdk deploy]
+  C --> D[ECR image push]
+  C --> E[CloudFormation update]
+  C --> F[S3 deploy + CloudFront invalidation]
 ```
 
-### 0. 前提条件
-- AWS 認証情報が対象アカウントに対して利用可能であること（必要に応じて AssumeRole）。
-- `Node.js` / `npm` / `AWS CLI` / `AWS CDK v2` が利用可能であること。
-- ローカルでコンテナランタイムが起動していること（例: Docker Desktop / Rancher Desktop）。
-  - `imagedeploy.DockerImageDeployment` のビルド時に必要です。
-- 環境切替は `-c env=<dev|stg|prod>` を使用すること。
-  - `env` 未指定は `infra/bin/infra.ts` でエラー終了します。
+## 0. 前提条件
 
-### 0.1 対象アカウント設定（`prod`）の事前確認
-- 環境マッピング（account/region）は `infra/lib/config/environment-config.ts` で管理します。
-- `prod` にデプロイする前に、必ず `prod` の `accountId` と `region` が対象環境に一致していることを確認してください。
-- 例（`infra/lib/config/environment-config.ts`）:
+- AWS 認証情報が対象アカウントで利用可能（必要に応じて AssumeRole）
+- Node.js / npm / AWS CLI / AWS CDK v2 が利用可能
+- ローカルのコンテナランタイムが起動済み（Docker Desktop など）
+- 環境指定は `-c env=<dev|stg|prod>` を必ず付与
 
-```ts
-prod: {
-  environmentName: 'prod',
-  accountId: '333333333333',
-  region: 'ap-northeast-1',
-},
-```
+## 0.1 環境設定の確認
 
-- 上記の `accountId` / `region` はサンプル値です。実運用では対象 AWS アカウント/リージョン値に合わせて事前設定してください。
-- この設定と、実際に利用する AWS 認証情報（AssumeRole 先含む）が一致していない場合、誤デプロイまたは権限エラーの原因になります。
+デプロイ先の account/region は `infra/lib/config/environment-config.ts` で管理します。  
+実行前に、対象環境（例: `prod`）の値が意図した AWS アカウント/リージョンであることを確認してください。
 
-### 1. 初回セットアップ（1回のみ）
-- 目的: CDK Toolkit スタックを対象アカウント/リージョンへ作成するため。
-- `infra/` で実行します。
+## 1. 初回のみ: CDK Bootstrap
+
+`infra/` で実行します。
 
 ```bash
 cd infra
-npx cdk bootstrap aws://333333333333/ap-northeast-1 -c env=prod
+npx cdk bootstrap aws://<account-id>/<region> -c env=prod
 ```
 
-補足:
-- 上記は `prod` 相当の例です（`environment-config.ts` の `prod` 定義）。
-- `dev` / `stg` で実行する場合は、対象アカウント/リージョンを対応値に置き換えます。
+- `<account-id>` と `<region>` は `environment-config.ts` の `prod` 定義に合わせます。
+- `dev` / `stg` の場合は `-c env` と bootstrap 先を対応値に置き換えます。
 
-### 2. frontend をビルド
-- `frontend/` で静的成果物を生成します。
+## 2. frontend をビルド
 
 ```bash
 cd frontend
@@ -74,10 +58,9 @@ npm run build
 ```
 
 確認:
-- `frontend/dist` が生成されていること。
+- `frontend/dist` が生成されていること
 
-### 3. CDK 事前確認（推奨）
-- `infra/` でテンプレート生成と差分確認を行います。
+## 3. CDK 事前確認（推奨）
 
 ```bash
 cd infra
@@ -86,36 +69,43 @@ npx cdk synth -c env=prod
 npx cdk diff -c env=prod
 ```
 
-### 4. デプロイ実行（prod 例）
-- `infra/` でデプロイします。
+## 4. デプロイ実行
 
 ```bash
 cd infra
 npx cdk deploy -c env=prod
 ```
 
-実行時に行われること:
-- backend Docker イメージのビルドと ECR への配布（`latest`）。
-- CloudFormation スタック更新。
-- `frontend/dist` と `runtime-config.json` の S3 配備、および CloudFront invalidation。
+## 5. デプロイ後の確認
 
-### 5. デプロイ後の確認
-- `cdk deploy` 出力（または CloudFormation Outputs）から以下を確認します。
-  - `TodoAppCloudFrontDomainName`
-  - `TodoAppCognitoHostedUiBaseUrl`
-  - `TodoAppCognitoUserPoolClientId`
-  - `TodoAppCognitoCallbackUrl`
-  - `TodoAppCognitoLogoutUrl`
-- ブラウザで CloudFront ドメインにアクセスし、トップ画面が表示されることを確認します。
-- Cognito Hosted UI ログイン後、`/api/*` 経路で backend API が疎通することを確認します。
+CloudFormation 出力（または `cdk deploy` の出力）で以下を確認します。
 
-### 6. 代表的な失敗ケースと切り分け
-- `frontend/dist` がない
-  - 症状: `cdk synth/diff/deploy` 実行時に asset 関連エラー。
-  - 対応: `frontend/` で `npm run build` を再実行する。
-- コンテナランタイムが停止している
-  - 症状: `imagedeploy.DockerImageDeployment` のビルド失敗。
-  - 対応: Docker Desktop / Rancher Desktop を起動後、再実行する。
-- AWS 権限不足（AssumeRole / ECR / CloudFormation）
-  - 症状: `AccessDenied`、`sts:AssumeRole` 失敗、ECR push 失敗。
-  - 対応: 利用プロファイルとロール権限を確認し、対象アカウント権限を満たす認証で再実行する。
+- `TodoAppCloudFrontDomainName`
+- `TodoAppCognitoHostedUiBaseUrl`
+- `TodoAppCognitoUserPoolClientId`
+- `TodoAppCognitoCallbackUrl`
+- `TodoAppCognitoLogoutUrl`
+
+確認ポイント:
+- CloudFront ドメインで SPA が表示される
+- Cognito Hosted UI でログインできる
+- ログイン後に `/api/*` 経路で Todo API が利用できる
+
+## 6. 代表的な失敗ケース
+
+### `frontend/dist` がない
+- 症状: `cdk synth/diff/deploy` で asset 関連エラー
+- 対応: `frontend` で `npm run build` を再実行
+
+### コンテナランタイム未起動
+- 症状: backend イメージのビルド/配布失敗
+- 対応: Docker Desktop 等を起動して再実行
+
+### AWS 権限不足
+- 症状: `AccessDenied`、`sts:AssumeRole` 失敗、ECR push 失敗
+- 対応: 利用プロファイルとロール権限を確認して再実行
+
+## 関連
+
+- [infra 入口 README](../../infra/README.md)
+- [ECS + Aurora + CloudFront + Cognito 実行基盤](../infra/ecs-aurora-runtime-baseline.md)
