@@ -1,17 +1,17 @@
 # Backend Docs
 
-`backend/` の詳細仕様を責務別に分割して管理します。
+このディレクトリは、`backend/`（Spring Boot API）の詳細仕様を管理します。  
+「API 契約」「設計方針」「データモデル」を分けて参照できる構成です。
 
-## 文書一覧
+## どの文書を見るべきか
 
-- [API 仕様](./api.md)
-  - `/api/todos` の契約、リクエスト/レスポンス、エラー仕様
-- [設計・セキュリティ](./architecture-security.md)
-  - レイヤ構成、認証/認可、所有者境界、AWS 実行前提との接続
-- [データモデル](./data-model.md)
-  - `todos` テーブル仕様、インデックス、トリガー、ER 図（`todos` 単体）
+| 目的 | 文書 |
+| --- | --- |
+| エンドポイント仕様を確認したい | [API 仕様](./api.md) |
+| 認証/認可やレイヤ構成を理解したい | [設計・セキュリティ](./architecture-security.md) |
+| DB スキーマや制約を確認したい | [データモデル](./data-model.md) |
 
 ## 関連リンク
 
 - [backend 入口 README](../../backend/README.md)
-- [docs 入口 README](../README.md)
+- [docs 全体入口](../README.md)

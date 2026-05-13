@@ -1,102 +1,99 @@
 # Todo Application on AWS ECS
 
-このプロジェクトはTodoアプリケーションです。  
-Spring Boot（バックエンド）、React（フロントエンド）、AWS Aurora Serverless v2 PostgreSQL（データベース）を使用しています。  
-インフラストラクチャはAWS CDKで定義されています。  
+Spring Boot / React / AWS CDK で構成した、認証付き Todo アプリケーションのサンプルです。  
+このリポジトリでは、アプリ実装と AWS インフラ定義を 1 つのモノレポで管理します。
 
-- Spring Boot による backend アプリケーション
-- React による frontend アプリケーション
-- AWS リソースを作成し、backend と frontend をデプロイする AWS CDK（TypeScript）
+## システム概要
 
-
-## プロジェクト構成
-全体の Git 管理は `Todo-ECS-Sample` をルートプロジェクトとして行い、その配下に以下の 4 つのサブプロジェクトを配置するモノレポ構成(monorepo / monolithic repository)です。  
-
-1. `backend/`  
-   Spring Boot アプリケーションを配置する
-
-2. `frontend/`  
-   React アプリケーションを配置する
-
-3. `infra/`  
-   AWS CDK（TypeScript）プロジェクトを配置し、AWS リソースの作成と backend / frontend のデプロイを担う
-
-ディレクトリ構成は以下とする。
-```text
-Todo-ECS-Sample/   <- ルートプロジェクト (git管理)
- │
- ├── backend/      <- Spring Boot プロジェクト
- │
- ├── frontend/     <- React プロジェクト
- │
- ├── infra/        <- AWS CDK (TypeScript) プロジェクト
- │
- ├── README.md
- └── .gitignore
+```mermaid
+flowchart LR
+  U[Browser] --> CF[CloudFront]
+  CF -->|default| S3[S3: Frontend]
+  CF -->|/api/*| ALB[ALB]
+  ALB --> ECS[ECS Fargate<br/>Spring Boot]
+  ECS --> RDS[(Aurora PostgreSQL)]
+  ECS --> SM[Secrets Manager]
+  U --> COG[Cognito Hosted UI]
 ```
 
-## 技術
-### バックエンド
+- フロントエンドは CloudFront 経由で配信されます。
+- API は `/api/*` で ALB -> ECS の経路にルーティングされます。
+- 認証は Cognito Hosted UI（Authorization Code + PKCE）を利用します。
+
+## 最初に読むドキュメント
+
+1. 全体像: [docs/README.md](./docs/README.md)
+2. AWS デプロイ手順: [docs/development/aws-deployment-manual.md](./docs/development/aws-deployment-manual.md)
+3. サブプロジェクト入口:
+   - [backend/README.md](./backend/README.md)
+   - [frontend/README.md](./frontend/README.md)
+   - [infra/README.md](./infra/README.md)
+
+## ディレクトリ構成
+
+| ディレクトリ | 役割 |
+| --- | --- |
+| `backend/` | Spring Boot API（`/api/todos`） |
+| `frontend/` | React + Vite の SPA |
+| `infra/` | AWS CDK（TypeScript）によるインフラ定義 |
+| `docs/` | 詳細ドキュメントと ADR |
+
+## 技術スタック
+
+### Backend
 - Java 21
 - Spring Boot
-- Spring Data JPA
-- Flyway 8
-- PostgreSQL
+- Spring Security（OAuth2 Resource Server）
+- Spring Data JPA / Flyway
+- PostgreSQL（Aurora Serverless v2）
 
-### フロントエンド
+### Frontend
 - React
 - TypeScript
-- AWS Amplify
+- Vite
+- Cognito Hosted UI + PKCE
 
-### インフラストラクチャ
-- AWS CDK
-- AWS ECS on Fargate
+### Infrastructure
+- AWS CDK v2
+- Amazon ECS on Fargate
 - Amazon ECR
 - Amazon CloudFront
 - Amazon Cognito
-- ALB
+- Application Load Balancer
 - AWS Secrets Manager
-- AWS Aurora Serverless v2 PostgreSQL
+- Amazon Aurora Serverless v2 (PostgreSQL)
 - Amazon S3
 
 ## 前提条件
-- Node.js 16.x
+
+- Node.js 20.19 以上（frontend のビルド要件）
+- Java 21（backend）
+- Docker（CDK 実行時のコンテナイメージビルドで利用）
 - AWS CLI
-- AWS CDK v2.x
-- Docker
-- AWS Account
-- IntelliJ IDEA (本プロジェクトではIntelliJを使用しているが他のIDEでも可)
+- AWS CDK v2
+- AWS 利用可能な認証情報（必要に応じて AssumeRole）
 
-## Todoアプリケーション
-[AWS デプロイ手順（Monorepo 全体）](./docs/development/aws-deployment-manual.md)でforntend、backendをAWSにデプロイ後、Todo　アプリケーションのURLを取得してアクセスします。  
-TodoアプリケーションのURLはAWSマネージメントコンソール(CloudFormation)から取得してください。
+## デプロイ後のアクセス
 
-CloudFormationのスタック(**InfraStack-prod**) -> [出力]タブ -> **TodoAppCloudFrontDomainName**を使ってアクセスできます。
+デプロイ後は CloudFormation 出力値から URL を確認します。
+
+1. スタック `InfraStack-<env>` を開く
+2. 出力 `TodoAppCloudFrontDomainName` を確認する
+3. `https://<TodoAppCloudFrontDomainName>/` にアクセスする
+
 ```text
-https://TodoAppCloudFrontDomainName/
-
 例: https://d31esqfuca50la.cloudfront.net/
 ```
+
 ![](image/todos.png)
 
-### Cognito Hosted UIでログイン
-Todoアプリケーションにアクセスするとログインボタンが表示されます。
+### ログイン画面（Cognito Hosted UI）
+
 ![](image/login.png)
-
-Todoアプリケーションでは、Cognito Hosted UIでサインインします。
-
 ![](image/signin.png)
-
-初回アクセス時はサインアップしてください。
-
 ![](image/signup.png)
 
+## ADR（設計判断）
 
-## ADR (アーキテクチャ決定記録)
-[プロジェクト構成](./docs/adr/001-project-structure.md)
-
-## ドキュメント入口
-- [docs/README.md](./docs/README.md)
-- [backend/README.md](./backend/README.md)
-- [infra/README.md](./infra/README.md)
-- [AWS デプロイ手順（Monorepo 全体）](./docs/development/aws-deployment-manual.md)
+- [ADR 001: プロジェクト構成](./docs/adr/001-project-structure.md)
+- [ADR 002: ネットワーク基盤と環境切替方式](./docs/adr/002-network-baseline-and-env-switching.md)

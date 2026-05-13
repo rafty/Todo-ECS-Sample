@@ -1,9 +1,16 @@
 # Infra: ECS + Aurora + CloudFront + Cognito 実行基盤（005/006/008）
 
-## 結論
-- `infra/` の CDK は `ALB/ECS/Aurora` 基盤に `CloudFront + S3 + Cognito` を統合し、SPA と API を同一ドメイン配信する構成です。
-- CloudFront の default behavior は S3 静的配信、`/api/*` のみ ALB へ転送します。
-- Cognito callback/logout URL は `distribution.distributionDomainName` から動的に組み立てます。
+## この文書の対象
+
+- 本番系の実行基盤（API + SPA + 認証）の構成
+- CloudFront/S3/ALB/ECS/Aurora/Cognito の接続関係
+
+## 要点
+
+- 公開入口は CloudFront に統一します。
+- 静的配信は S3、API は `/api/*` で ALB に転送します。
+- backend は ECS Fargate 上で稼働し、Aurora/PostgreSQL を利用します。
+- 認証は Cognito Hosted UI（Authorization Code + PKCE）です。
 
 ## 構成
 
@@ -22,38 +29,50 @@ flowchart LR
 ```
 
 ## 実装ルール
-- CloudFront
-  - default: `S3(origin access control)` + `defaultRootObject=index.html`
-  - `/api/*`: `ALB` + `CACHING_DISABLED` + `OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER`
-  - SPA fallback: `403/404 -> /index.html (200)`
-- S3
-  - private（Block Public Access 有効）
-  - `BucketDeployment` で `frontend/dist` と `runtime-config.json` を配備
-  - CloudFront invalidation は `/*`
-- Cognito
-  - App Client は Public Client（secret なし）
-  - Authorization Code Flow + PKCE 前提
-  - callback: `https://${distributionDomainName}/auth/callback`
-  - logout: `https://${distributionDomainName}/`
-  - Refresh Token Rotation 有効
+
+### CloudFront
+
+- default behavior: S3（OAC）+ `defaultRootObject=index.html`
+- `/api/*`: ALB + `CACHING_DISABLED`
+- API 転送時は `OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER`
+- SPA fallback: `403/404 -> /index.html (200)`
+
+### S3
+
+- private バケット（Block Public Access 有効）
+- `BucketDeployment` で以下を配備
+  - `frontend/dist`
+  - `runtime-config.json`
+- 配備後は `/*` を invalidation
+
+### Cognito
+
+- Public Client（secret なし）
+- Authorization Code Flow（PKCE 前提）
+- callback: `https://${distributionDomainName}/auth/callback`
+- logout: `https://${distributionDomainName}/`
+- Refresh Token Rotation 有効
 
 ## Security Group 方針
+
 - ALB SG
-  - Inbound: `CloudFront managed prefix list -> 80/tcp`
-  - Outbound: `ECS SG -> 8080/tcp`
+  - Inbound: CloudFront managed prefix list -> `80/tcp`
+  - Outbound: ECS SG -> `8080/tcp`
 - ECS SG
-  - Inbound: `ALB SG -> 8080/tcp`
-  - Outbound: `Aurora SG -> 5432/tcp`
-  - Outbound: `0.0.0.0/0 -> 443/tcp`（ECR / Logs / Secrets Manager など AWS API 接続用）
+  - Inbound: ALB SG -> `8080/tcp`
+  - Outbound: Aurora SG -> `5432/tcp`
+  - Outbound: `0.0.0.0/0 -> 443/tcp`（AWS API 接続用）
 - Aurora SG
-  - Inbound: `ECS SG -> 5432/tcp`
+  - Inbound: ECS SG -> `5432/tcp`
 
 ## 運用上の注意
-- `cdk synth/diff` は lookup role を Assume できる AWS 認証が必要です。
-- `frontend/dist` がない状態では `BucketDeployment` 用 asset が作成できず失敗します。
-- `cdk-docker-image-deployment` のバンドルで Node16 ランタイム警告が出ることがあります（依存ライブラリ側）。
+
+- `cdk synth/diff` は lookup role を Assume 可能な AWS 認証が必要です。
+- `frontend/dist` が未生成だと `BucketDeployment` の asset 作成で失敗します。
+- `cdk-docker-image-deployment` 側の依存により Node16 警告が表示される場合があります。
 
 ## 関連
-- `infra/README.md`
-- `docs/infra/network-baseline.md`
-- `docs/infra/ecr-image-deployment.md`
+
+- [ネットワーク基盤](./network-baseline.md)
+- [ECR イメージ配布](./ecr-image-deployment.md)
+- [AWS デプロイ手順](../development/aws-deployment-manual.md)

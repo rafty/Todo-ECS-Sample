@@ -1,13 +1,16 @@
 # Infra: ネットワーク基盤（002-create_network）
 
-## 結論
-- `infra/` では、環境指定（`dev` / `stg` / `prod`）で切替可能なネットワーク基盤を CDK で定義する。
-- 現時点の実装は `prod` 利用を主目的とし、`prod` は `111111111111` / `ap-northeast-1` を前提とする。
-- Security Group の具体ルールは本機能の対象外とし、後続の ALB/ECS/DB 実装時に各リソースと合わせて定義する。
+## この文書の対象
 
-## 背景
-- デフォルトVPC依存を避け、環境差分管理と再現性を確保するため。
-- 将来の `dev` / `stg` 展開を同一実装パターンで行うため。
+- VPC / サブネット構成の基本方針
+- 環境切替（`dev` / `stg` / `prod`）の前提
+
+## 要点
+
+- デフォルト VPC は使用せず、新規 VPC を作成します。
+- 2AZ・3層サブネット（`front` / `application` / `datastore`）を採用します。
+- NAT Gateway は 1 台構成です。
+- 環境ごとの account/region は `infra/lib/config/environment-config.ts` で管理します。
 
 ## 構成
 
@@ -27,25 +30,28 @@ flowchart TB
     NAT[NAT Gateway x1]
   end
 
-  ALB[将来: ALB] --> F1
+  ALB[ALB] --> F1
   ALB --> F2
-  ECS[将来: ECS] --> A1
+  ECS[ECS] --> A1
   ECS --> A2
-  DB[将来: Aurora] --> D1
+  DB[Aurora] --> D1
   DB --> D2
   A1 --> NAT
   A2 --> NAT
 ```
 
 ## 運用ルール
-- 環境指定は必須: `-c env=<dev|stg|prod>`
-- 環境情報は `infra/lib/config/environment-config.ts` で管理する。
-- 共通タグは `env` / `service` / `version` を付与し、現時点の `version` は `1.00` を使用する。
 
-## 既知事項
-- `cdk synth -c env=prod` は、実行環境の認証状態によって失敗する場合がある（AssumeRole/証明書チェーン要因）。
-- これは実装不備ではなく実行環境依存のため、認証設定を整えた環境で再実行する。
+- CDK 実行時は `-c env=<dev|stg|prod>` の指定を必須とします。
+- 共通タグとして `env` / `service` / `version` を付与します。
+- Security Group 詳細は後続機能（ALB/ECS/DB 構築）で定義します。
+
+## 補足
+
+- `cdk synth` は実行環境の認証状態（AssumeRole など）で失敗する場合があります。
+- 認証設定を確認したうえで再実行してください。
 
 ## 関連
-- `infra/README.md`
-- `docs/adr/002-network-baseline-and-env-switching.md`
+
+- [infra 入口 README](../../infra/README.md)
+- [ADR 002](../adr/002-network-baseline-and-env-switching.md)
