@@ -79,6 +79,7 @@ test('Network, ECS, ALB, CloudFront, Cognito and Aurora resources are defined', 
   // なぜ必要か: AuroraがPostgreSQLエンジンで作成され、todos用途のDB名を保持することを担保するため。
   template.hasResourceProperties('AWS::RDS::DBCluster', {
     Engine: 'aurora-postgresql',
+    EngineVersion: '16.13',
     DatabaseName: 'todoapp',
   });
 
