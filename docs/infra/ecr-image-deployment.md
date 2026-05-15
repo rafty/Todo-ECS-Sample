@@ -8,22 +8,25 @@
 ## 要点
 
 - CDK で ECR リポジトリ `todo` を作成します。
-- `backend/` の Dockerfile をビルドし、`latest` タグで ECR へ配布します。
+- `backend/` の Dockerfile を `DockerImageAsset` でビルドし、`cdk-ecr-deployment` で ECR へ配布します。
+- 配布タグは `DockerImageAsset.imageTag`（イメージ内容に連動する可変タグ）を使用します。
 - 本機能の責務は「ECR 配布まで」であり、ECS サービス更新は含みません。
 
 ## 配布フロー
 
 ```mermaid
 flowchart LR
-  A[backend/Dockerfile] --> B[cdk-docker-image-deployment]
-  B --> C[ECR: todo:latest]
-  C --> D[ECSが後続機能で参照]
+  A[backend/Dockerfile] --> B[DockerImageAsset build]
+  B --> C[cdk-ecr-deployment]
+  C --> D[ECR: todo:imageTag]
+  D --> E[ECSが後続機能で参照]
 ```
 
 ## 実装ルール
 
 - リポジトリ名: `todo`
-- タグ: `latest`（固定）
+- タグ: `DockerImageAsset.imageTag`（可変）
+- `latest` タグは付与しない
 - 本機能では未採用:
   - イメージスキャン設定
   - ライフサイクルポリシー

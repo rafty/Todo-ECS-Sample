@@ -54,11 +54,10 @@ export class InfraStack extends cdk.Stack {
       repositoryName: 'todo',
     });
 
-    // なぜ必要か: ECR配布処理の責務を分離し、ECS更新を含めない仕様をコードで明確化するため。
-    new BackendImageDeploymentConstruct(this, 'BackendImageDeploymentConstruct', {
+    // なぜ必要か: backendイメージをビルドし、内容に連動したタグでECRへ配布する責務を分離するため。
+    const backendImageDeployment = new BackendImageDeploymentConstruct(this, 'BackendImageDeploymentConstruct', {
       repository: todoAppEcrRepository.repository,
       backendDirectoryPath: path.join(__dirname, '../../backend'),
-      imageTag: 'latest',
     });
 
     // なぜ必要か: ALB/ECS/Aurora間の通信境界を最小権限で管理するため。
@@ -81,11 +80,13 @@ export class InfraStack extends cdk.Stack {
       vpc: networkVpc.vpc,
       securityGroup: todoAppSecurityGroups.ecsSecurityGroup,
       repository: todoAppEcrRepository.repository,
-      imageTag: 'latest',
+      imageTag: backendImageDeployment.imageTag,
       databaseSecret: todoAuroraDatabase.databaseSecret,
       containerPort: applicationPort,
       desiredCount: 2,
     });
+    // なぜ必要か: 初回デプロイ時にイメージ未配布のタグをECSがpullして失敗することを防ぐため。
+    todoBackendEcsService.service.node.addDependency(backendImageDeployment.imageDeployment);
 
     // なぜ必要か: インターネット入口としてALBを配置し、ECSサービスへルーティングするため。
     const todoApplicationAlb = new TodoAlbConstruct(this, 'TodoAlbConstruct', {
@@ -151,9 +152,9 @@ export class InfraStack extends cdk.Stack {
       value: todoAppEcrRepository.repository.repositoryUri,
     });
 
-    // なぜ必要か: 配布タグ固定仕様（latest）をテンプレート上でも明示するため。
+    // なぜ必要か: ECSが参照する実イメージタグをデプロイ成果物として確認できるようにするため。
     new cdk.CfnOutput(this, 'TodoAppEcrImageTag', {
-      value: 'latest',
+      value: backendImageDeployment.imageTag,
     });
 
     // なぜ必要か: ALBのアクセス先をデプロイ後に即時確認できるようにするため。

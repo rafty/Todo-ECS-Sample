@@ -42,7 +42,7 @@ export class TodoBackendEcsServiceConstruct extends Construct {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    // なぜ必要か: 既存ECRイメージ(todo:latest)を使ってSpring BootアプリをFargateで実行するため。
+    // なぜ必要か: ECRへ配布された指定タグのSpring BootイメージをFargateで実行するため。
     this.taskDefinition.addContainer('TodoBackendContainer', {
       image: ecs.ContainerImage.fromEcrRepository(props.repository, props.imageTag),
       logging: ecs.LogDrivers.awsLogs({

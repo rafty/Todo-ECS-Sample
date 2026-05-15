@@ -25,6 +25,8 @@ test('Network, ECS, ALB, CloudFront, Cognito and Aurora resources are defined', 
   template.resourceCountIs('AWS::ElasticLoadBalancingV2::TargetGroup', 1);
   template.resourceCountIs('AWS::CloudFront::Distribution', 1);
   template.resourceCountIs('Custom::CDKBucketDeployment', 1);
+  template.resourceCountIs('Custom::CDKECRDeployment', 1);
+  template.resourceCountIs('AWS::CodeBuild::Project', 0);
   template.resourceCountIs('AWS::Cognito::UserPool', 1);
   template.resourceCountIs('AWS::Cognito::UserPoolClient', 1);
   template.resourceCountIs('AWS::Cognito::UserPoolDomain', 1);
@@ -51,10 +53,11 @@ test('Network, ECS, ALB, CloudFront, Cognito and Aurora resources are defined', 
     }),
   });
 
-  // なぜ必要か: ECSがtodo:latestを参照し、DB接続情報をシークレット経由で受け取ることを担保するため。
+  // なぜ必要か: ECSがECRの可変タグを参照し、DB接続情報をシークレット経由で受け取ることを担保するため。
   template.hasResourceProperties('AWS::ECS::TaskDefinition', {
     ContainerDefinitions: Match.arrayWith([
       Match.objectLike({
+        Image: Match.anyValue(),
         PortMappings: Match.arrayWith([
           Match.objectLike({
             ContainerPort: 8080,
@@ -71,7 +74,7 @@ test('Network, ECS, ALB, CloudFront, Cognito and Aurora resources are defined', 
       }),
     ]),
   });
-  expect(JSON.stringify(template.toJSON())).toContain(':latest');
+  expect(JSON.stringify(template.toJSON())).not.toContain(':latest');
 
   // なぜ必要か: AuroraがPostgreSQLエンジンで作成され、todos用途のDB名を保持することを担保するため。
   template.hasResourceProperties('AWS::RDS::DBCluster', {

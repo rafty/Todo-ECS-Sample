@@ -32,14 +32,15 @@ npx cdk diff -c env=prod
 
 ## 004-awscdk_docker_image_deployment で追加された内容
 - `Todo` ECR リポジトリを CDK で作成
-- `backend/` の Dockerfile をビルドし、ECR に `latest` タグで配布
+- `backend/` の Dockerfile を `DockerImageAsset` でビルドし、`cdk-ecr-deployment` で ECR に配布
+- 配布タグは `DockerImageAsset.imageTag`（イメージ内容に連動する可変タグ）を利用
 - `RemovalPolicy.DESTROY`（サンプル要件として `prod` 含む全対象環境）
 - ECR のイメージスキャン設定、ライフサイクルポリシー、タグ不変設定は未採用
 - ECS サービス更新はこの機能の対象外（ECR 配布まで）
 
 ## 005-ecs-aurora-jpa で追加された内容
 - ALB / ECS(Fargate) / Aurora Serverless v2(PostgreSQL) / Secrets Manager をCDKで作成
-- `todo:latest` イメージをECSタスク定義で参照
+- ECR の可変タグイメージ（`DockerImageAsset.imageTag`）をECSタスク定義で参照
 - DB接続情報をSecrets Manager経由でECSコンテナに注入
 - ALB/ECS/Aurora 用 Security Group を追加し、`ALB -> ECS -> Aurora` の通信経路を明示
 - ALB ヘルスチェック（`path=/`）とターゲットグループ連携を追加
@@ -64,7 +65,7 @@ npx cdk diff -c env=prod
 ## 実行時の注意
 - `cdk deploy` / `cdk synth` / `cdk diff` 実行時に Docker デーモンが必要です。
 - AWS 認証情報に ECR への push 権限が必要です。
-- `prod` 実行時は、`111111111111` 側の CDK lookup role を Assume できる認証が必要です。
+- `dev/stg/prod` いずれの実行でも、対象アカウント側の CDK lookup role を Assume できる認証が必要です。
 - frontend を更新した場合は、`infra` 実行前に `frontend/` で `npm run build` を実行して `dist/` を生成してください。
 
 ## 関連ドキュメント
