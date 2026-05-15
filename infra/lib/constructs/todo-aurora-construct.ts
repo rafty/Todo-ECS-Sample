@@ -25,7 +25,9 @@ export class TodoAuroraConstruct extends Construct {
     // なぜ必要か: Aurora Serverless v2(PostgreSQL)を2AZ前提でdatastoreサブネットへ配置するため。
     this.cluster = new rds.DatabaseCluster(this, 'TodoAuroraCluster', {
       engine: rds.DatabaseClusterEngine.auroraPostgres({
-        version: rds.AuroraPostgresEngineVersion.VER_16_4,
+        // なぜ必要か: 16.4 は 2026-05-31 に標準サポート終了予定のため、同一メジャー16系の最新安定版へ更新して計画外の自動更新依存を避ける。
+        // なぜ必要か: aws-cdk-lib 2.215.0 には 16.13 の定数がないため、リージョンで提供される有効バージョンを of(...) で明示指定する。
+        version: rds.AuroraPostgresEngineVersion.of('16.13', '16'),
       }),
       writer: rds.ClusterInstance.serverlessV2('WriterInstance'),
       serverlessV2MinCapacity: 0.5,
