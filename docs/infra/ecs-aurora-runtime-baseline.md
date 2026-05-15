@@ -22,7 +22,7 @@ flowchart LR
   ALB --> ECS[ECS Fargate Service]
   ECS --> RDS[(Aurora PostgreSQL)]
   ECS --> SM[Secrets Manager]
-  ECR[(ECR: todo:latest)] --> ECS
+  ECR[(ECR: todo:imageTag)] --> ECS
 
   User --> COGUI[Cognito Hosted UI]
   COGUI -->|code + state| User
@@ -69,7 +69,7 @@ flowchart LR
 
 - `cdk synth/diff` は lookup role を Assume 可能な AWS 認証が必要です。
 - `frontend/dist` が未生成だと `BucketDeployment` の asset 作成で失敗します。
-- `cdk-docker-image-deployment` 側の依存により Node16 警告が表示される場合があります。
+- 本構成の image 配布は `cdk-ecr-deployment` を利用し、旧 `cdk-docker-image-deployment` 由来の Node16 警告は発生しない想定です。
 
 ## 関連
 
